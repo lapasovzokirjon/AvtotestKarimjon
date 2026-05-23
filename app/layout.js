@@ -22,7 +22,7 @@ export const viewport = {
   themeColor: '#081312',
 };
 
-const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+const PIXEL_ID = process.env.META_PIXEL_ID;
 
 export default function RootLayout({ children }) {
   return (
