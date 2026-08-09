@@ -96,8 +96,8 @@ export async function POST(request) {
         utmText +
         `\n\n🕐 ${new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' })}`;
 
-      try {
-        await fetch(
+      const sendTelegram = async (withButton) => {
+        const res = await fetch(
           `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
           {
             method: 'POST',
@@ -106,7 +106,7 @@ export async function POST(request) {
               chat_id: TELEGRAM_CHAT_ID,
               text: message,
               parse_mode: 'HTML',
-              ...(purchaseUrl
+              ...(withButton && purchaseUrl
                 ? {
                     reply_markup: {
                       inline_keyboard: [
@@ -118,6 +118,29 @@ export async function POST(request) {
             }),
           }
         );
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          throw new Error(`Telegram ${res.status}: ${body}`);
+        }
+      };
+
+      try {
+        try {
+          await sendTelegram(true);
+        } catch (withButtonErr) {
+          if (purchaseUrl) {
+            // Havola (masalan localhost domeni) Telegram uchun yaroqsiz bo'lishi
+            // mumkin — tugmasiz qayta yuborib, lead xabari baribir yetib borishini
+            // ta'minlaymiz
+            console.warn(
+              '⚠️ Tugma bilan yuborilmadi, tugmasiz urinib ko’ramiz:',
+              withButtonErr.message
+            );
+            await sendTelegram(false);
+          } else {
+            throw withButtonErr;
+          }
+        }
       } catch (tgErr) {
         console.error('Telegram xatolik:', tgErr);
         // Telegram ishlamasa ham, foydalanuvchiga xatolik chiqarmaymiz

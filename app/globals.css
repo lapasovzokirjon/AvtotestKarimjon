@@ -228,6 +228,15 @@ main {
   flex-shrink: 0;
 }
 
+/* ===================== STANDALONE PAGE (masalan /purchase) ===================== */
+.standalone-page {
+  padding-top: 26px;
+}
+.standalone-page .sheet {
+  margin-top: 0;
+  border-radius: 30px;
+}
+
 /* ===================== FORM SHEET ===================== */
 .sheet {
   background: #fff;
