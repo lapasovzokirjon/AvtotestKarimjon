@@ -58,7 +58,7 @@ export default function LeadForm() {
       return;
     }
     if (!form.location.trim()) {
-      setError('Iltimos, yashash joyingizni kiriting');
+      setError('Iltimos, yashash joyingizni kiriting.');
       return;
     }
     if (!form.certificate) {
