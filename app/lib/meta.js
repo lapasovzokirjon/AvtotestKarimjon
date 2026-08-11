@@ -16,36 +16,52 @@ export function normalizePhone(phone) {
   return String(phone).replace(/[^0-9]/g, '');
 }
 
-function base64url(input) {
-  return Buffer.from(input).toString('base64url');
-}
-
-function hmac(body) {
+// LEAD_TOKEN_SECRET dan aynan 32 baytli AES-256 kalit hosil qilamiz
+function encryptionKey() {
   const secret = process.env.LEAD_TOKEN_SECRET || '';
-  return crypto.createHmac('sha256', secret).update(body).digest('base64url');
+  return crypto.createHash('sha256').update(secret).digest();
 }
 
-// Lead ma'lumotlarini imzolangan (o'zgartirib bo'lmaydigan) token qilib qadovlaydi
+// Lead ma'lumotlarini (ism, telefon, fbp/fbc, ip/ua) shifrlangan token qilib
+// qadovlaydi — AES-256-GCM: maxfiy kalitsiz hech kim tokenni o'qiy olmaydi,
+// o'zgartirib bo'lmaydi (GCM avtomatik yaxlitlikni tekshiradi)
 export function signToken(payload) {
-  const body = base64url(JSON.stringify({ ...payload, iat: Math.floor(Date.now() / 1000) }));
-  return `${body}.${hmac(body)}`;
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv);
+
+  const plaintext = JSON.stringify({ ...payload, iat: Math.floor(Date.now() / 1000) });
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  return [
+    iv.toString('base64url'),
+    encrypted.toString('base64url'),
+    authTag.toString('base64url'),
+  ].join('.');
 }
 
-// Tokenni tekshiradi: imzo mos kelmasa yoki muddati o'tgan bo'lsa null qaytadi
+// Tokenni deshifrlaydi: kalit mos kelmasa, o'zgartirilgan bo'lsa yoki muddati
+// o'tgan bo'lsa null qaytadi
 export function verifyToken(token) {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return null;
+  if (!token || typeof token !== 'string') return null;
 
-  const [body, signature] = token.split('.');
-  const expected = hmac(body);
-
-  const sigBuf = Buffer.from(signature);
-  const expectedBuf = Buffer.from(expected);
-  if (sigBuf.length !== expectedBuf.length) return null;
-  if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [ivB64, encryptedB64, authTagB64] = parts;
 
   let payload;
   try {
-    payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      encryptionKey(),
+      Buffer.from(ivB64, 'base64url')
+    );
+    decipher.setAuthTag(Buffer.from(authTagB64, 'base64url'));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(encryptedB64, 'base64url')),
+      decipher.final(),
+    ]);
+    payload = JSON.parse(decrypted.toString('utf8'));
   } catch {
     return null;
   }

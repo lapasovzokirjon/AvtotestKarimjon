@@ -96,7 +96,12 @@ export async function POST(request) {
         utmText +
         `\n\n🕐 ${new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' })}`;
 
-      const sendTelegram = async (withButton) => {
+      const sendTelegram = async (mode) => {
+        const text =
+          mode === 'link' && purchaseUrl
+            ? `${message}\n\n🔗 <a href="${purchaseUrl}">Sotuvni belgilash</a>`
+            : message;
+
         const res = await fetch(
           `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
           {
@@ -104,9 +109,9 @@ export async function POST(request) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: TELEGRAM_CHAT_ID,
-              text: message,
+              text,
               parse_mode: 'HTML',
-              ...(withButton && purchaseUrl
+              ...(mode === 'button' && purchaseUrl
                 ? {
                     reply_markup: {
                       inline_keyboard: [
@@ -124,25 +129,27 @@ export async function POST(request) {
         }
       };
 
+      // Avval chiroyli tugma bilan, u rad etilsa (masalan localhost domeni
+      // sabab) oddiy matn havola bilan, u ham bo'lmasa — lead xabari baribir
+      // yetib borishi uchun havolasiz yuboramiz
       try {
-        try {
-          await sendTelegram(true);
-        } catch (withButtonErr) {
-          if (purchaseUrl) {
-            // Havola (masalan localhost domeni) Telegram uchun yaroqsiz bo'lishi
-            // mumkin — tugmasiz qayta yuborib, lead xabari baribir yetib borishini
-            // ta'minlaymiz
-            console.warn(
-              '⚠️ Tugma bilan yuborilmadi, tugmasiz urinib ko’ramiz:',
-              withButtonErr.message
-            );
-            await sendTelegram(false);
-          } else {
-            throw withButtonErr;
+        await sendTelegram('button');
+      } catch (buttonErr) {
+        if (!purchaseUrl) {
+          console.error('Telegram xatolik:', buttonErr);
+        } else {
+          console.warn('⚠️ Tugma bilan yuborilmadi, havola bilan urinib ko’ramiz:', buttonErr.message);
+          try {
+            await sendTelegram('link');
+          } catch (linkErr) {
+            console.warn('⚠️ Havola bilan ham yuborilmadi, havolasiz urinib ko’ramiz:', linkErr.message);
+            try {
+              await sendTelegram('none');
+            } catch (noneErr) {
+              console.error('Telegram xatolik:', noneErr);
+            }
           }
         }
-      } catch (tgErr) {
-        console.error('Telegram xatolik:', tgErr);
         // Telegram ishlamasa ham, foydalanuvchiga xatolik chiqarmaymiz
       }
     } else {
