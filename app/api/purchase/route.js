@@ -68,7 +68,7 @@ export async function POST(request) {
 
     if (!eventResult.ok) {
       return NextResponse.json(
-        { ok: false, error: 'Meta CAPI xatolik' },
+        { ok: false, error: 'Meta CAPI xatolik', detail: eventResult.error },
         { status: 502 }
       );
     }
