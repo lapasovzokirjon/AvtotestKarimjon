@@ -66,6 +66,20 @@ Keyin `.env.local` faylini ochib qiymatlarni to'ldiring:
 
 > CAPI ixtiyoriy, lekin reklama natijasini ancha yaxshilaydi (iOS, ad-blocker holatlarida ham ishlaydi).
 
+### 💳 Xarid havolasi (Purchase link) sozlash
+
+Har bir lead uchun Telegram xabarida **"Sotuvni tasdiqlash"** tugmasi chiqadi. Tugma bosilib summa kiritilsa, o'sha lead uchun Meta'ga Purchase eventi yuboriladi (ROAS shu orqali hisoblanadi).
+
+1. Terminalda tasodifiy kalit generatsiya qiling:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+2. Natijani `LINK_SECRET` ga qo'ying (`.env.local` da, **Vercel'da esa Settings → Environment Variables** orqali — bu qiymat git'ga push bo'lmaydi, Vercel'ga alohida, qo'lda qo'shish kerak!)
+3. Vercel'da yangi environment variable qo'shgandan/o'zgartirgandan keyin **Deployments → ⋯ → Redeploy** qiling — aks holda eski deploy hali eski (yoki bo'sh) qiymatdan foydalanadi.
+4. Ixtiyoriy: `PURCHASE_LINK_TTL_DAYS` (standart 30 kun — havola shu muddatdan keyin ishlamay qoladi) va `DEFAULT_CURRENCY` (standart `UZS`).
+
+> ⚠️ `LINK_SECRET` sozlanmasa — tugma umuman ko'rinmaydi (jim xato), yoki tugma bosilganda "Havola yaroqsiz" chiqadi.
+
 ---
 
 ## ▶️ 3-qadam: Ishga tushirish
@@ -103,12 +117,15 @@ npm start
 ```
 avtotest-karimjon/
 ├── app/
-│   ├── api/lead/route.js     ← Telegram + Meta CAPI yuborish
-│   ├── components/LeadForm.js ← Forma (client component)
-│   ├── globals.css            ← Barcha stillar + animatsiyalar
-│   ├── layout.js              ← Meta Pixel + SEO
-│   └── page.js                ← Asosiy sahifa
-├── .env.example               ← Sozlamalar namunasi
+│   ├── api/lead/route.js       ← Lead qabul qilish: Telegram + Meta CAPI (Lead)
+│   ├── api/purchase/route.js   ← Xarid tasdiqlash: Meta CAPI (Purchase)
+│   ├── purchase/[token]/       ← Xarid havolasi sahifasi (summa kiritish)
+│   ├── components/LeadForm.js  ← Forma (client component)
+│   ├── globals.css             ← Barcha stillar + animatsiyalar
+│   ├── layout.js               ← Meta Pixel + SEO
+│   └── page.js                 ← Asosiy sahifa
+├── lib/                        ← crypto.js, meta.js, telegram.js, url.js (umumiy funksiyalar)
+├── .env.example                ← Sozlamalar namunasi
 ├── package.json
 └── README.md
 ```
